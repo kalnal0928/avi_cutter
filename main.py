@@ -16,6 +16,7 @@ class MainWindow(QWidget):
         self.start_time = 0
         self.end_time = 0
         self.current_file_path = ""
+        self.is_slider_pressed = False
 
         # Media Player, Audio Output and Video Widget
         self.media_player = QMediaPlayer(self)
@@ -41,6 +42,8 @@ class MainWindow(QWidget):
         self.position_slider = QSlider(Qt.Orientation.Horizontal)
         self.position_slider.setRange(0, 0)
         self.position_slider.sliderMoved.connect(self.set_media_position)
+        self.position_slider.sliderPressed.connect(self.slider_pressed)
+        self.position_slider.sliderReleased.connect(self.slider_released)
         self.duration_label = QLabel("00:00:00.000")
 
         playback_controls_layout = QHBoxLayout()
@@ -183,7 +186,8 @@ class MainWindow(QWidget):
             self.play_pause_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
     def update_slider_position(self, position):
-        self.position_slider.setValue(position)
+        if not self.is_slider_pressed:
+            self.position_slider.setValue(position)
 
     def update_time_labels(self, position):
         self.current_time_label.setText(self.format_time(position))
@@ -196,6 +200,13 @@ class MainWindow(QWidget):
 
     def set_media_position(self, position):
         self.media_player.setPosition(position)
+
+    def slider_pressed(self):
+        self.is_slider_pressed = True
+
+    def slider_released(self):
+        self.is_slider_pressed = False
+        self.media_player.setPosition(self.position_slider.value())
 
     def set_start_time(self):
         self.start_time = self.media_player.position()
