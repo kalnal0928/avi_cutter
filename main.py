@@ -73,6 +73,18 @@ class MainWindow(QWidget):
         cutting_controls_layout.addStretch()
         cutting_controls_layout.addWidget(cut_button)
 
+        # --- Output Path Controls ---
+        output_path_label = QLabel("저장 위치:")
+        self.output_path_input = QLineEdit()
+        self.output_path_input.setReadOnly(True)
+        browse_output_button = QPushButton("찾아보기")
+        browse_output_button.clicked.connect(self.browse_output_directory)
+
+        output_path_layout = QHBoxLayout()
+        output_path_layout.addWidget(output_path_label)
+        output_path_layout.addWidget(self.output_path_input)
+        output_path_layout.addWidget(browse_output_button)
+
         # --- Track Controls ---
         self.video_track_checkbox = QCheckBox("영상 트랙")
         self.video_track_checkbox.setChecked(True)
@@ -98,17 +110,24 @@ class MainWindow(QWidget):
 
         # --- Main Layout ---
         open_button = QPushButton('파일 열기')
+        open_button.setFixedSize(120, 40)
         open_button.clicked.connect(self.open_file_dialog)
+
+        open_button_layout = QHBoxLayout()
+        open_button_layout.addWidget(open_button)
+        open_button_layout.addStretch()
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        layout.addLayout(open_button_layout)
         layout.addWidget(video_widget)
         layout.addWidget(self.file_info_group)
         layout.addLayout(playback_controls_layout)
         layout.addLayout(cutting_controls_layout)
+        layout.addLayout(output_path_layout)
         layout.addLayout(track_controls_layout)
         layout.addLayout(audio_options_layout)
-        layout.addWidget(open_button)
+
 
         # --- Connect signals ---
         self.media_player.playbackStateChanged.connect(self.update_play_button_icon)
@@ -222,6 +241,11 @@ class MainWindow(QWidget):
     def toggle_audio_track(self, checked):
         self.audio_output.setMuted(not checked)
 
+    def browse_output_directory(self):
+        directory = QFileDialog.getExistingDirectory(self, "저장할 폴더 선택")
+        if directory:
+            self.output_path_input.setText(directory)
+
     def cut_video(self):
         if not self.current_file_path:
             QMessageBox.warning(self, "오류", "먼저 동영상 파일을 열어주세요.")
@@ -241,6 +265,11 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, "오류", "영상 또는 사운드 트랙 중 하나는 선택해야 합니다.")
             return
 
+        output_dir = self.output_path_input.text()
+        if not output_dir:
+            QMessageBox.warning(self, "오류", "저장할 폴더를 먼저 선택해주세요.")
+            return
+
         if video_on and not audio_on:
             file_filter = "MP4 Video (*.mp4)"
         elif not video_on and audio_on:
@@ -248,10 +277,12 @@ class MainWindow(QWidget):
         else: # Both on
             file_filter = "MP4 Video (*.mp4)"
 
-        output_path, _ = QFileDialog.getSaveFileName(self, "잘라낸 파일 저장", filter=file_filter)
+        file_name, _ = QFileDialog.getSaveFileName(self, "잘라낸 파일 이름 입력", dir=output_dir, filter=file_filter)
 
-        if not output_path:
+        if not file_name:
             return # User cancelled
+
+        output_path = os.path.join(output_dir, os.path.basename(file_name))
 
         try:
             input_stream = ffmpeg.input(self.current_file_path, ss=(start_time_ms / 1000), to=(end_time_ms / 1000))
